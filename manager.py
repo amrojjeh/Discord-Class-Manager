@@ -72,7 +72,7 @@ async def add_channels(category, teacher_name):
 
 	for channelName in requiredVoiceChannels:
 		if (channelName not in (v.name for v in voice_channels)):
-			await category.create_voice_channel(channelName)
+			await category.create_voice_channel(channelName, overwrites=overwritesGeneral)
 
 async def add_teacher(guild, teacher_name):
 	# Check if channel exists
