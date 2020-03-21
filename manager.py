@@ -25,7 +25,7 @@ async def get_teacher_role(guild, teacher_name, create_if_not_found):
 	# if role doesn't exist, create it
 	teacherRole = None
 	for role in guild.roles:
-		if (role.name == teacher_name):
+		if (role.name.lower() == teacher_name.lower()):
 			teacherRole = role
 
 	if (teacherRole == None and create_if_not_found):
