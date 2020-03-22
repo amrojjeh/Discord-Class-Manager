@@ -98,24 +98,32 @@ async def on_message(message):
 
 	if (message.content.startswith(PREFIX + "join")):
 		words = message.content.split(" ")
+
+		# Get teacher and period
 		if (len(words) >= 2 ):
 			teacher = words[1]
 			period = None
 			if (len(words) == 3):
 				period = words[2]
-			role = await get_teacher_role(message.author.guild, teacher, False)
-			if (role == None):
+			teacherRole = await get_teacher_role(message.author.guild, teacher, False)
+			if (teacherRole == None):
 				await message.channel.send("Teacher not found!")
 				return
-			for author_role in message.author.roles[1:]:
-				await message.author.remove_roles(author_role)
-			await message.author.add_roles(role)
+
+			# Get period role
 			if (period != None):
 				periodRole = await get_teacher_role(message.author.guild, teacher + period, False)
 				if (periodRole == None):
 					await message.channel.send("Period doesn't exist!")
-				else:
-					await message.author.add_roles(periodRole)
+					return
+			
+			# Remove previous roles
+			for author_role in message.author.roles[1:]:
+				await message.author.remove_roles(author_role)
+			
+			# Add roles
+			await message.author.add_roles(teacherRole)
+			await message.author.add_roles(periodRole)
 			await message.channel.send(f"You joined {teacher}'s class!")
 		else:
 			await message.channel.send(f"Usage: {PREFIX}join TEACHER [PERIOD]")
