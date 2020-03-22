@@ -122,7 +122,7 @@ async def add(ctx, teacher):
 		return
 
 	await add_teacher(ctx.guild, teacher)
-	await message.channel.send(f"Teacher added!")
+	await ctx.send(f"Teacher added!")
 
 @bot.command()
 async def remove(ctx, *, category):
