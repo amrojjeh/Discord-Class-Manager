@@ -117,18 +117,14 @@ async def join(ctx, teacher, period=None):
 
 
 @bot.command()
+@commands.has_role("admin")
 async def add(ctx, teacher):
-	if (not is_guild_owner(ctx)):
-		return
-
 	await add_teacher(ctx.guild, teacher)
 	await ctx.send(f"Teacher added!")
 
 @bot.command()
-async def remove(ctx, *, category):
-	if (not is_guild_owner(ctx)):
-		return
-	
+@commands.has_role("admin")
+async def remove(ctx, *, category):	
 	if (await remove_category(ctx.guild, category) != 0):
 		await ctx.send("Category doesn't exist")
 	else:
