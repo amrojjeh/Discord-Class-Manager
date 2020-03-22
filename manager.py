@@ -1,13 +1,6 @@
 import discord
-import os
+from discord.ext import commands 
 
-client = discord.Client()
-
-PREFIX = "!"
-
-@client.event
-async def on_ready():
-	print(f"We logged in as: {client.user}")
 
 async def remove_category(guild, category_name):
 	selected = None
@@ -88,67 +81,61 @@ async def add_teacher(guild, teacher_name):
 		category = await guild.create_category(teacher_name)
 		await add_channels(category, teacher_name)
 
-def is_guild_owner(message):
-	return message.author.id == message.author.guild.owner.id
-
-@client.event
-async def on_message(message):
-	if (message.author.bot):
-		return
-
-	if (message.content.startswith(PREFIX + "join")):
-		words = message.content.split(" ")
-
-		# Get teacher and period
-		if (len(words) >= 2):
-			teacher = " ".join(words[1:-1])
-			period = None
-			if (len(words) >= 3):
-				period = words[-1]
-			teacherRole = await get_teacher_role(message.author.guild, teacher, False)
-			if (teacherRole == None):
-				await message.channel.send(f"Teacher, {teacher}, not found!")
-				return
-
-			# Get period role
-			if (period != None):
-				periodRole = await get_teacher_role(message.author.guild, teacher + period, False)
-				if (periodRole == None):
-					await message.channel.send(f"Period, {period}, doesn't exist!")
-					return
-			
-			# Remove previous roles
-			for author_role in message.author.roles[1:]:
-				if (client.roles[1] > author_role):
-					await message.author.remove_roles(author_role)
-			
-			# Add roles
-			await message.author.add_roles(teacherRole)
-			await message.author.add_roles(periodRole)
-			await message.channel.send(f"You joined {teacher}'s class!")
-		else:
-			await message.channel.send(f"Usage: {PREFIX}join TEACHER [PERIOD]")
-
-	if (message.content.startswith(PREFIX + "add") and is_guild_owner(message)):
-		words = message.content.split(" ")
-		if (len(words) >= 2):
-			teacher = " ".join(words[1:])
-			await add_teacher(message.author.guild, teacher)
-			await message.channel.send(f"Teacher added!")
-		else:
-			await message.channel.send(f"Usage: {PREFIX}add TEACHER")
-
-	if (message.content.startswith(PREFIX + "remove") and is_guild_owner(message)):
-		words = message.content.split(" ")
-		if (len(words) >= 2):
-			category = " ".join(words[1:])
-			if (await remove_category(message.author.guild, category) != 0):
-				await message.channel.send("Category doesn't exist")
-			else:
-				await message.channel.send("Category deleted")
+def is_guild_owner(ctx):
+	return ctx.author == ctx.guild.owner
 
 token = ""
 with open("token.txt", "r") as file:
 	token = file.read()
 
-client.run(token)
+bot = commands.Bot(command_prefix=commands.when_mentioned_or("!"))
+
+@bot.command()
+async def join(ctx, teacher, period=None):
+	# Get teacher role
+	teacherRole = await get_teacher_role(ctx.guild, teacher, False)
+	if (teacherRole == None):
+		await ctx.send(f"Teacher, {teacher}, not found!")
+		return
+
+	# Get period role
+	if (period != None):
+		periodRole = await get_teacher_role(ctx.guild, teacher + period, False)
+		if (periodRole == None):
+			await ctx.send(f"Period, {period}, doesn't exist!")
+			return
+		
+	# Remove previous roles
+	for author_role in ctx.author.roles[1:]:
+		if (ctx.me.roles[1] > author_role):
+			await ctx.author.remove_roles(author_role)
+	
+	# Add roles
+	await ctx.author.add_roles(teacherRole)
+	await ctx.author.add_roles(periodRole)
+	await ctx.send(f"You joined {teacher}'s class!")
+
+
+@bot.command()
+async def add(ctx, teacher):
+	if (not is_guild_owner(ctx)):
+		return
+
+	await add_teacher(ctx.guild, teacher)
+	await message.channel.send(f"Teacher added!")
+
+@bot.command()
+async def remove(ctx, *, category):
+	if (not is_guild_owner(ctx)):
+		return
+	
+	if (await remove_category(ctx.guild, category) != 0):
+		await ctx.send("Category doesn't exist")
+	else:
+		await ctx.send("Category deleted")
+
+@bot.listen()
+async def on_ready():
+	print(f"We logged in as: {bot.user}")
+
+bot.run(token)
