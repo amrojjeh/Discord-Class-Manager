@@ -100,26 +100,27 @@ async def on_message(message):
 		words = message.content.split(" ")
 
 		# Get teacher and period
-		if (len(words) >= 2 ):
-			teacher = words[1]
+		if (len(words) >= 2):
+			teacher = " ".join(words[1:-1])
 			period = None
-			if (len(words) == 3):
-				period = words[2]
+			if (len(words) >= 3):
+				period = words[-1]
 			teacherRole = await get_teacher_role(message.author.guild, teacher, False)
 			if (teacherRole == None):
-				await message.channel.send("Teacher not found!")
+				await message.channel.send(f"Teacher, {teacher}, not found!")
 				return
 
 			# Get period role
 			if (period != None):
 				periodRole = await get_teacher_role(message.author.guild, teacher + period, False)
 				if (periodRole == None):
-					await message.channel.send("Period doesn't exist!")
+					await message.channel.send(f"Period, {period}, doesn't exist!")
 					return
 			
 			# Remove previous roles
 			for author_role in message.author.roles[1:]:
-				await message.author.remove_roles(author_role)
+				if (client.roles[1] > author_role):
+					await message.author.remove_roles(author_role)
 			
 			# Add roles
 			await message.author.add_roles(teacherRole)
@@ -130,8 +131,8 @@ async def on_message(message):
 
 	if (message.content.startswith(PREFIX + "add") and is_guild_owner(message)):
 		words = message.content.split(" ")
-		if (len(words) == 2):
-			teacher = words[1]
+		if (len(words) >= 2):
+			teacher = " ".join(words[1:])
 			await add_teacher(message.author.guild, teacher)
 			await message.channel.send(f"Teacher added!")
 		else:
