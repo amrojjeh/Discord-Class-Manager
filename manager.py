@@ -1,6 +1,9 @@
 import discord
 from discord.ext import commands 
 
+class CommonPermissions:
+	hidden = discord.PermissionOverwrite(read_messages=False, view_channel=False, send_messages=False)
+	available = discord.PermissionOverwrite(read_messages=True, view_channel=True, send_messages=True)
 
 async def remove_category(guild, category_name):
 	selected = None
@@ -14,72 +17,72 @@ async def remove_category(guild, category_name):
 	await selected.delete()
 	return 0
 
-async def get_teacher_role(guild, teacher_name, create_if_not_found):
+async def get_role(guild, role_name, create_if_not_found=False):
 	# if role doesn't exist, create it
-	teacherRole = None
-	for role in guild.roles:
-		if (role.name.lower() == teacher_name.lower()):
-			teacherRole = role
+	role = None
+	for guildRole in guild.roles:
+		if (guildRole.name.lower() == role_name.lower()):
+			role = guildRole
 
-	if (teacherRole == None and create_if_not_found):
-		teacherRole = await guild.create_role(name=teacher_name, colour=discord.Colour.blue(), reason="Didn't exist")
-	return teacherRole
+	if (role == None and create_if_not_found):
+		role = await guild.create_role(name=role_name, colour=discord.Colour.blue(), reason="Didn't exist")
+	return role
 
-# THIS DOES NOT DELETE DUPLICATES
-async def add_channels(category, teacher_name):
+async def get_category(guild, category_name, create_if_not_found=False):
+	category = None
+
+	for guildCategory in guild.categories:
+		if guildCategory.name.lower() == category_name.lower():
+			category = guildCategory
+	
+	if (category == None and create_if_not_found):
+		category = await guild.create_category(category_name)
+	return category
+
+async def get_text_channel_in_category(category, channel_name, create_if_not_found=False):
+	channel = None
+
+	for categoryChannel in category.text_channels:
+		if categoryChannel.name.lower() == channel_name.lower():
+			channel = categoryChannel
+	if (channel == None and create_if_not_found):
+		channel = await category.create_text_channel(channel_name)
+	
+	return channel
+
+async def get_voice_channel_in_category(category, channel_name, create_if_not_found=False):
+	channel = None
+
+	for categoryChannel in category.voice_channels:
+		if categoryChannel.lower() == channel_name.lower():
+			channel = categoryChannel
+	if (channel == None and create_if_not_found):
+		channel = await category.create_voice_channel(channel_name)
+	
+	return channel
+
+async def add_channels(category, teacher_role):
 	requiredTextChannels = ["general", "p1", "p2", "p3", "p4", "p5", "p6", "p7"]
 	requiredVoiceChannels = ["Classroom"]
 
-	channels_to_delete = []
+	for channel_name in requiredTextChannels:
+		channel = await get_text_channel_in_category(category, channel_name, True)
+		if (channel_name == "general"):
+			await channel.set_permissions(teacher_role, overwrite=CommonPermissions.available)
+		await channel.set_permissions(category.guild.default_role, overwrite=CommonPermissions.hidden)
 
-	text_channels = category.text_channels
-	voice_channels = category.voice_channels
-
-	teacherRole = await get_teacher_role(category.guild, teacher_name, True)
-
-	overwritesGeneral = {
-		category.guild.default_role: discord.PermissionOverwrite(read_messages=False, view_channel=False, send_messages=False),
-		teacherRole: discord.PermissionOverwrite(read_messages=True, view_channel=True, send_messages=True)
-	}
-
-	# Remove unneeded channels
-	for channel in category.channels:
-		if (channel.name not in requiredTextChannels and channel.name not in requiredVoiceChannels):
-			channels_to_delete.append(channel)
-
-	for channel in channels_to_delete:
-		await channel.delete()
-
-	# Add needed channels
-	for channelName in requiredTextChannels:
-		if (channelName not in (t.name for t in text_channels)):
-			if channelName != "general":
-				periodRole = await get_teacher_role(category.guild, teacher_name + channelName, True)
-				overwritesPeriod = {
-					category.guild.default_role: discord.PermissionOverwrite(read_messages=False, view_channel=False, send_messages=False),
-					periodRole: discord.PermissionOverwrite(read_messages=True, view_channel=True, send_messages=True)
-				}
-				await category.create_text_channel(channelName, overwrites=overwritesPeriod)
-			else:
-				await category.create_text_channel(channelName, overwrites=overwritesGeneral)
-
-	for channelName in requiredVoiceChannels:
-		if (channelName not in (v.name for v in voice_channels)):
-			await category.create_voice_channel(channelName, overwrites=overwritesGeneral)
+	for channel_name in requiredVoiceChannels:
+		channel = await get_voice_channel_in_category(category, channel_name, True)
+		await channel.set_permissions(category.guild.default_role, overwrite=CommonPermissions.hidden)
+		await channel.set_permissions(teacher_role, overwrite=CommonPermissions.available)
 
 async def add_teacher(guild, teacher_name):
-	# Check if channel exists
-	# if not create channels
-	category_found = False
+	# Create role and category, if they doesn't exist
+	teacher_role = await get_role(guild, teacher_name, True)
+	category = await get_category(guild, teacher_name, True)
 
-	for category in guild.categories:
-		if (category != None and category.name.lower() == teacher_name.lower()):
-			await add_channels(category, teacher_name)
-			category_found = True
-
-	if (not category_found):
-		category = await guild.create_category(teacher_name)
-		await add_channels(category, teacher_name)
+	# Create chanenls
+	await add_channels(category, teacher_role)
 
 def is_guild_owner(ctx):
 	return ctx.author == ctx.guild.owner
@@ -91,28 +94,38 @@ with open("token.txt", "r") as file:
 bot = commands.Bot(command_prefix=commands.when_mentioned_or("!"))
 
 @bot.command()
-async def join(ctx, teacher, period=None):
+async def join(ctx, teacher, period=""):
 	# Get teacher role
-	teacherRole = await get_teacher_role(ctx.guild, teacher, False)
-	if (teacherRole == None):
+	teacherRole = await get_role(ctx.guild, teacher)
+	teacherCategory = await get_category(ctx.guild, teacher)
+	periodChannel = None
+
+	if (teacherRole == None or teacherCategory == None):
 		await ctx.send(f"Teacher, {teacher}, not found!")
 		return
 
 	# Get period role
-	if (period != None):
-		periodRole = await get_teacher_role(ctx.guild, teacher + period, False)
-		if (periodRole == None):
+	if (period != ""):
+		periodChannel = await get_text_channel_in_category(teacherCategory, period)
+		if (periodChannel == None):
 			await ctx.send(f"Period, {period}, doesn't exist!")
 			return
-		
+
 	# Remove previous roles
 	for author_role in ctx.author.roles[1:]:
+		category = await get_category(ctx.guild, author_role.name)
+		if (category != None):
+			for channel in category.text_channels:
+				if (channel.overwrites_for(ctx.author) == CommonPermissions.available):
+					await channel.set_permissions(ctx.author, overwrite=CommonPermissions.hidden)
+		
 		if (ctx.me.roles[1] > author_role):
 			await ctx.author.remove_roles(author_role)
 	
 	# Add roles
 	await ctx.author.add_roles(teacherRole)
-	await ctx.author.add_roles(periodRole)
+	if (periodChannel != None):
+		await periodChannel.set_permissions(ctx.author, overwrite=CommonPermissions.available)
 	await ctx.send(f"You joined {teacher}'s class!")
 
 
