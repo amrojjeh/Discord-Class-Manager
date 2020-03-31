@@ -104,30 +104,37 @@ async def join(ctx, teacher, period=""):
 		await ctx.send(f"Teacher, {teacher}, not found!")
 		return
 
-	# Get period role
+	# Get period channel
 	if (period != ""):
 		periodChannel = await get_text_channel_in_category(teacherCategory, period)
 		if (periodChannel == None):
 			await ctx.send(f"Period, {period}, doesn't exist!")
 			return
-
-	# Remove previous roles
-	for author_role in ctx.author.roles[1:]:
-		category = await get_category(ctx.guild, author_role.name)
-		if (category != None):
-			for channel in category.text_channels:
-				if (channel.overwrites_for(ctx.author) == CommonPermissions.available):
-					await channel.set_permissions(ctx.author, overwrite=CommonPermissions.hidden)
-		
-		if (ctx.me.roles[1] > author_role):
-			await ctx.author.remove_roles(author_role)
 	
+	# Leave previous class
+	await leave(ctx)
+
 	# Add roles
 	await ctx.author.add_roles(teacherRole)
 	if (periodChannel != None):
 		await periodChannel.set_permissions(ctx.author, overwrite=CommonPermissions.available)
 	await ctx.send(f"You joined {teacher}'s class!")
 
+
+@bot.command()
+async def leave(ctx):
+	leftPrevious = False
+	for author_role in ctx.author.roles[1:]:
+		category = await get_category(ctx.guild, author_role.name)
+		if (category != None):
+			for channel in category.text_channels:
+				if (channel.overwrites_for(ctx.author) == CommonPermissions.available):
+					await channel.set_permissions(ctx.author, overwrite=CommonPermissions.hidden)
+			if (ctx.me.roles[1] > author_role):
+					await ctx.author.remove_roles(author_role)
+					leftPrevious = True
+	if leftPrevious:
+		await ctx.send("You left your previous class")
 
 @bot.command()
 @commands.has_role("admin")
