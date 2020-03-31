@@ -118,6 +118,8 @@ async def join(ctx, teacher, period=""):
 	await ctx.author.add_roles(teacherRole)
 	if (periodChannel != None):
 		await periodChannel.set_permissions(ctx.author, overwrite=CommonPermissions.available)
+		rolePeriod = await get_role(ctx.guild, period, True)
+		await ctx.author.add_roles(rolePeriod)
 	await ctx.send(f"You joined {teacher}'s class!")
 
 
@@ -130,9 +132,9 @@ async def leave(ctx):
 			for channel in category.text_channels:
 				if (channel.overwrites_for(ctx.author) == CommonPermissions.available):
 					await channel.set_permissions(ctx.author, overwrite=CommonPermissions.hidden)
-			if (ctx.me.roles[1] > author_role):
-					await ctx.author.remove_roles(author_role)
-					leftPrevious = True
+		if (ctx.me.roles[1] > author_role):
+				await ctx.author.remove_roles(author_role)
+				leftPrevious = True
 	if leftPrevious:
 		await ctx.send("You left your previous class")
 
