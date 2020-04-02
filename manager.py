@@ -1,9 +1,12 @@
 import discord
-from discord.ext import commands 
+from discord.ext import commands
+import os
 
 class CommonPermissions:
 	hidden = discord.PermissionOverwrite(read_messages=False, view_channel=False, send_messages=False)
 	available = discord.PermissionOverwrite(read_messages=True, view_channel=True, send_messages=True)
+
+guilds = {}
 
 async def remove_category(guild, category_name):
 	selected = None
@@ -60,6 +63,31 @@ async def get_voice_channel_in_category(category, channel_name, create_if_not_fo
 		channel = await category.create_voice_channel(channel_name)
 	
 	return channel
+
+async def getGuildInfo(guild, create_if_not_found=False):
+	if (create_if_not_found and os.path.exists(guild.name + ".txt")):
+		await appendGuildInfo(guild, "")
+		return ""
+	with open(guild.name + ".txt", "r") as f:
+		return f.readlines()
+
+async def buildGuildInfo(guild):
+	teachers = {}
+	info = await getGuildInfo(guild)
+	if len(info) == 0:
+		return
+	for line in info:
+		if (len(line) != 0):
+			words = line.split()
+			teacher = words[0].lower()
+			period = words[1]
+			className = words[2]
+			if (teacher in teachers):
+				teachers[teacher][period] = className
+			else:
+				teachers[teacher] = {}
+				teachers[teacher][period] = className
+	guilds[guild.name] = teachers
 
 async def add_channels(category, teacher_role):
 	requiredTextChannels = ["general", "p1", "p2", "p3", "p4", "p5", "p6", "p7"]
@@ -120,6 +148,14 @@ async def join(ctx, teacher, period=""):
 		await periodChannel.set_permissions(ctx.author, overwrite=CommonPermissions.available)
 		rolePeriod = await get_role(ctx.guild, period, True)
 		await ctx.author.add_roles(rolePeriod)
+
+		className = ""
+		if ctx.guild.name in guilds and teacher.lower() in guilds[ctx.guild.name] and period in guilds[ctx.guild.name][teacher.lower()]:
+			className = guilds[ctx.guild.name][teacher.lower()][period]
+		if (className != ""):
+			classRole = await get_role(ctx.guild, className, True)
+			await ctx.author.add_roles(classRole)
+
 	await ctx.send(f"You joined {teacher}'s class!")
 
 
@@ -127,11 +163,12 @@ async def join(ctx, teacher, period=""):
 async def leave(ctx):
 	leftPrevious = False
 	for author_role in ctx.author.roles[1:]:
-		category = await get_category(ctx.guild, author_role.name)
+		category = await get_category(ctx.guild, author_role.name.lower())
 		if (category != None):
 			for channel in category.text_channels:
 				if (channel.overwrites_for(ctx.author) == CommonPermissions.available):
 					await channel.set_permissions(ctx.author, overwrite=CommonPermissions.hidden)
+					leftPrevious = True
 		if (ctx.me.roles[1] > author_role):
 				await ctx.author.remove_roles(author_role)
 				leftPrevious = True
@@ -155,5 +192,7 @@ async def remove(ctx, *, category):
 @bot.listen()
 async def on_ready():
 	print(f"We logged in as: {bot.user}")
+	for guild in bot.guilds:
+		await buildGuildInfo(guild)
 
 bot.run(token)
