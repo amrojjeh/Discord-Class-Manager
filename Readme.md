@@ -9,6 +9,8 @@ However, if this gets enough attention, I might re-write it and add support for 
 
 Feel free to fork it though!
 
+## Adding bot
+Since I don't have a server, and even if I did, I wouldn't use it to host other people's bots, you're going to have to create a discord bot application. After that, discord will give you a token, and you just put that in token.txt. Pretty simple.
 
 ## Usage
 If you're the owner of the server, here's how you add teachers:
