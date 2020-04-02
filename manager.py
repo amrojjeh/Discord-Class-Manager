@@ -64,16 +64,15 @@ async def get_voice_channel_in_category(category, channel_name, create_if_not_fo
 	
 	return channel
 
-async def getGuildInfo(guild, create_if_not_found=False):
-	if (create_if_not_found and os.path.exists(guild.name + ".txt")):
-		await appendGuildInfo(guild, "")
-		return ""
+async def get_guild_info(guild):
+	if (not os.path.exists(guild.name + ".txt")):
+		return []
 	with open(guild.name + ".txt", "r") as f:
 		return f.readlines()
 
-async def buildGuildInfo(guild):
+async def build_guild_info(guild):
 	teachers = {}
-	info = await getGuildInfo(guild)
+	info = await get_guild_info(guild)
 	if len(info) == 0:
 		return
 	for line in info:
@@ -193,6 +192,6 @@ async def remove(ctx, *, category):
 async def on_ready():
 	print(f"We logged in as: {bot.user}")
 	for guild in bot.guilds:
-		await buildGuildInfo(guild)
+		await build_guild_info(guild)
 
 bot.run(token)
